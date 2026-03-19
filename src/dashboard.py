@@ -217,6 +217,9 @@ def main():
     
     # Sekcja treningu
     if train_button:
+        # Pobierz obiekt task przed treningiem
+        task = TaskFactory.get_task(selected_task)
+        
         with st.spinner(f"🏃 Trenuję agenta na zadaniu {selected_task.upper()}..."):
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -300,7 +303,7 @@ def main():
                         yaxis_title="Loss",
                         height=400
                     )
-                    st.plotly_chart(fig_loss, use_container_width=True)
+                    st.plotly_chart(fig_loss, width='stretch')
                 
                 with col2:
                     # Wykres Accuracy
@@ -318,7 +321,7 @@ def main():
                         yaxis=dict(range=[0, 1.1]),
                         height=400
                     )
-                    st.plotly_chart(fig_acc, use_container_width=True)
+                    st.plotly_chart(fig_acc, width='stretch')
                 
                 # Predykcje
                 st.markdown("## 🎯 Predykcje")
@@ -345,7 +348,7 @@ def main():
                     df.style.apply(highlight_correct, axis=1).format({
                         'Predykcja (raw)': '{:.4f}'
                     }),
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True
                 )
                 
@@ -371,7 +374,7 @@ def main():
                             activations=last_activations,
                             title=f"Sieć: {task.name.upper()} ({task.input_dim}→{hidden_dim}→{task.output_dim})"
                         )
-                        st.plotly_chart(network_fig, use_container_width=True)
+                        st.plotly_chart(network_fig, width='stretch')
                 
                 with col2:
                     st.markdown("### 📈 Ewolucja Wag")
@@ -380,7 +383,7 @@ def main():
                             agent.weight_history,
                             title="Jak wagi zmieniają się w czasie"
                         )
-                        st.plotly_chart(evolution_fig, use_container_width=True)
+                        st.plotly_chart(evolution_fig, width='stretch')
                 
                 # Heatmap aktywacji
                 if agent.activation_history:
@@ -390,7 +393,7 @@ def main():
                         last_activations,
                         title="Aktywacje neuronów dla ostatniego batcha"
                     )
-                    st.plotly_chart(heatmap_fig, use_container_width=True)
+                    st.plotly_chart(heatmap_fig, width='stretch')
                 
                 # Informacje o wagach
                 st.markdown("### 📊 Statystyki Wag")
