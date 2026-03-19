@@ -23,6 +23,7 @@ from universal_agent import UniversalAgent
 from network_visualizer import NetworkVisualizer
 from iq_calculator import AgentIQCalculator
 from persistent_agent import get_persistent_agent
+from auto_evolution import AutoEvolutionSystem
 
 
 # Konfiguracja strony
@@ -168,6 +169,7 @@ def main():
 
         # Przyciski akcji
         train_button = st.button("🏃 Trenuj Agenta", type="primary", use_container_width=True)
+        auto_evo_button = st.button("🤖 Auto-Evolution", type="secondary", use_container_width=True)
         reset_button = st.button("🔄 Reset Grzybni", type="secondary", use_container_width=True)
 
         if reset_button:
@@ -203,6 +205,105 @@ def main():
                 stats['total_updates'],
                 delta=None
             )
+
+    st.markdown("---")
+
+    # Sekcja Auto-Evolution
+    if auto_evo_button:
+        st.markdown("## 🤖 Auto-Evolution System")
+        
+        # Informacje o systemie
+        st.info("""
+        **🤖 Auto-Evolution** automatycznie nauczy agenta WSZYSTKICH wzorów:
+        - AND, OR, NOT (proste)
+        - XOR, NAND, NOR (średnie)
+        - Inteligentna optymalizacja parametrów
+        - Cel: 95% accuracy na wszystkich zadaniach
+        """)
+        
+        # Potwierdzenie
+        if st.button("🚀 Start Auto-Evolution", type="primary"):
+            # Inicjalizuj system
+            evolution_system = AutoEvolutionSystem()
+            
+            # Placeholder na status
+            status_placeholder = st.empty()
+            progress_placeholder = st.empty()
+            results_placeholder = st.empty()
+            
+            def progress_callback(message):
+                status_placeholder.markdown(f"### {message}")
+            
+            # Uruchom ewolucję
+            with st.spinner("🤖 Auto-Evolution w toku... To może zająć 15-30 minut"):
+                evolution_results = evolution_system.run_full_evolution(progress_callback)
+                
+                # Pokaż wyniki
+                status_placeholder.markdown("### ✅ Auto-Evolution zakończone!")
+                
+                # Podsumowanie
+                st.markdown("## 📊 Podsumowanie Ewolucji")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric(
+                        "🎯 Opanowane zadania",
+                        f"{len(evolution_results['tasks_mastered'])}/{len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])}"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "⏱️ Całkowity czas",
+                        f"{evolution_results['total_time']:.1f}s"
+                    )
+                
+                with col3:
+                    st.metric(
+                        "🎓 Sesji treningu",
+                        evolution_results['total_sessions']
+                    )
+                
+                with col4:
+                    success_rate = len(evolution_results['tasks_mastered']) / (len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])) * 100
+                    st.metric(
+                        "📈 Sukces rate",
+                        f"{success_rate:.1f}%"
+                    )
+                
+                # Szczegółowe wyniki
+                with st.expander("🔍 Szczegółowe wyniki zadań"):
+                    for task_log in evolution_results['evolution_log']:
+                        task_name = task_log['task_name'].upper()
+                        success = task_log['success']
+                        best_acc = task_log['best_accuracy']
+                        attempts = len(task_log['attempts'])
+                        
+                        if success:
+                            st.markdown(f"✅ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
+                        else:
+                            st.markdown(f"❌ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
+                
+                # Optymalne parametry
+                st.markdown("## 🎯 Optymalne Parametry")
+                optimization_summary = evolution_system.get_optimization_summary()
+                
+                for task_name, summary in optimization_summary.items():
+                    with st.expander(f"📊 {task_name.upper()} - Optymalizacja"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.metric("Najlepsza dokładność", f"{summary['best_accuracy']:.3f}")
+                            st.metric("Liczba prób", summary['attempts_needed'])
+                        
+                        with col2:
+                            if summary['optimal_params']:
+                                st.markdown("**Optymalne parametry:**")
+                                st.code(f"""
+Hidden Dim: {summary['optimal_params']['hidden_dim']}
+Learning Rate: {summary['optimal_params']['learning_rate']}
+Epochs: {summary['optimal_params']['epochs']}
+""")
 
     st.markdown("---")
 
