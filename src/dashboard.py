@@ -285,8 +285,8 @@ def main():
                 # Wykresy i predykcje - tylko jeśli nie było błędu
                 if 'agent' in results and results['agent'] is not None:
                     agent = results['agent']
-                
-                col1, col2 = st.columns(2)
+                    
+                    col1, col2 = st.columns(2)
                     
                     with col1:
                         # Wykres Loss
