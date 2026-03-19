@@ -21,6 +21,7 @@ from memory import MyceliumMemory
 from tasks import TaskFactory
 from universal_agent import UniversalAgent
 from network_visualizer import NetworkVisualizer
+from iq_calculator import AgentIQCalculator
 
 
 # Konfiguracja strony
@@ -423,6 +424,72 @@ def main():
                             "W2 odchylenie",
                             f"{np.std(weights['W2']):.4f}"
                         )
+                    
+                    # 🧠 IQ Agent Section
+                    st.markdown("## 🧠 IQ Agent")
+                    
+                    # Oblicz IQ
+                    iq_results = calculate_agent_iq(agent)
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric(
+                            "🧠 Aktualne IQ", 
+                            f"{iq_results['total_iq']:.0f}",
+                            delta=None
+                        )
+                    
+                    with col2:
+                        stage_name = iq_results['stage']['name'].upper()
+                        st.metric(
+                            "🎯 Etap Ewolucji", 
+                            stage_name,
+                            delta=None
+                        )
+                    
+                    with col3:
+                        next_iq = iq_results['next_stage_requirements'].get('needed_iq', 0)
+                        st.metric(
+                            "📈 IQ do następnego etapu", 
+                            f"{next_iq:.0f}",
+                            delta=None
+                        )
+                    
+                    # Progress bar ewolucji
+                    st.markdown("### 📊 Postęp Ewolucji")
+                    
+                    # Ogólny postęp
+                    overall_progress = iq_results['evolution_progress']
+                    st.progress(overall_progress, f"Ogólny postęp: {overall_progress*100:.1f}%")
+                    
+                    # Postęp w aktualnym etapie
+                    stage_progress = iq_results['stage']['progress']
+                    st.progress(stage_progress, f"Postęp w etapie: {stage_progress*100:.1f}%")
+                    
+                    # Szczegółowe wyniki IQ
+                    with st.expander("🔍 Szczegółowe wyniki IQ"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Testy IQ:**")
+                            for test_name, score in iq_results['breakdown'].items():
+                                test_display = test_name.replace('_', ' ').title()
+                                max_score = 30 if test_name != 'memory_retention' else 10
+                                st.metric(test_display, f"{score:.0f}/{max_score}")
+                        
+                        with col2:
+                            st.markdown("**Wymagania do następnego etapu:**")
+                            next_req = iq_results['next_stage_requirements']
+                            if next_req['next_stage'] != 'max':
+                                st.info(f"""
+                                **Następny etap:** {next_req['next_stage'].upper()}
+                                **Opis:** {next_req['description']}
+                                **Potrzebne IQ:** {next_req['target_iq']}
+                                **Brakuje:** {next_req['needed_iq']} punktów
+                                """)
+                            else:
+                                st.success("🏆 Osiągnięto maksymalny etap ewolucji!")
 
     # Informacje o grzybni
     st.markdown("---")
