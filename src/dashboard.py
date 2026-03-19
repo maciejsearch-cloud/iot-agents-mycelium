@@ -212,6 +212,20 @@ def main():
     if auto_evo_button:
         st.markdown("## 🤖 Auto-Evolution System")
         
+        # Debug info
+        if st.button("🔍 Debug System", type="secondary"):
+            try:
+                evolution_system = AutoEvolutionSystem()
+                st.success("✅ System zainicjalizowany!")
+                st.json({
+                    'tasks': list(evolution_system.tasks.keys()),
+                    'strategies': evolution_system.task_strategies,
+                    'mastery_threshold': evolution_system.mastery_threshold,
+                    'max_attempts': evolution_system.max_attempts_per_task
+                })
+            except Exception as e:
+                st.error(f"❌ Błąd inicjalizacji: {e}")
+        
         # Informacje o systemie
         st.info("""
         **🤖 Auto-Evolution** automatycznie nauczy agenta WSZYSTKICH wzorów:
@@ -222,7 +236,9 @@ def main():
         """)
         
         # Potwierdzenie
-        if st.button("🚀 Start Auto-Evolution", type="primary"):
+        start_evolution = st.button("🚀 Start Auto-Evolution", type="primary")
+        
+        if start_evolution:
             # Inicjalizuj system
             evolution_system = AutoEvolutionSystem()
             
@@ -235,13 +251,26 @@ def main():
                 status_placeholder.markdown(f"### {message}")
             
             # Uruchom ewolucję
-            with st.spinner("🤖 Auto-Evolution w toku... To może zająć 15-30 minut"):
-                evolution_results = evolution_system.run_full_evolution(progress_callback)
+            try:
+                with st.spinner("🤖 Auto-Evolution w toku... To może zająć 15-30 minut"):
+                    status_placeholder.markdown("### 🚀 Inicjalizuję system ewolucji...")
+                    evolution_results = evolution_system.run_full_evolution(progress_callback)
+                    
+                    # Pokaż wyniki
+                    status_placeholder.markdown("### ✅ Auto-Evolution zakończone!")
+                    
+            except Exception as e:
+                status_placeholder.markdown(f"### ❌ Błąd Auto-Evolution: {str(e)}")
+                st.error(f"Wystąpił błąd: {e}")
+                st.code(f"""
+                Debug info:
+                - System: {evolution_system}
+                - Tasks: {list(evolution_system.tasks.keys()) if evolution_system else 'None'}
+                - Error: {str(e)}
+                """)
+                return
                 
-                # Pokaż wyniki
-                status_placeholder.markdown("### ✅ Auto-Evolution zakończone!")
-                
-                # Podsumowanie
+            # Podsumowanie
                 st.markdown("## 📊 Podsumowanie Ewolucji")
                 
                 col1, col2, col3, col4 = st.columns(4)
