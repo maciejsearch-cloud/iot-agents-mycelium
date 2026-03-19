@@ -4,20 +4,8 @@ Definicje zadań uczenia dla agentów
 
 import numpy as np
 from typing import Tuple, Dict, Any
-from dataclasses import dataclass
+from task_base import Task
 import extended_tasks
-
-
-@dataclass
-class Task:
-    """Definicja zadania uczenia"""
-    name: str
-    X: np.ndarray  # Dane wejściowe
-    y: np.ndarray  # Oczekiwane wyjścia
-    input_dim: int
-    output_dim: int
-    description: str
-    difficulty: str  # 'easy', 'medium', 'hard'
 
 
 class TaskFactory:

@@ -4,7 +4,7 @@ Dodatkowe zadania uczenia dla agentów - rozszerzona kolekcja
 
 import numpy as np
 from typing import Tuple, Dict, Any
-from tasks import Task
+from task_base import Task
 
 
 class ExtendedTaskFactory:
