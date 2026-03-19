@@ -5,7 +5,7 @@ Definicje zadań uczenia dla agentów
 import numpy as np
 from typing import Tuple, Dict, Any
 from dataclasses import dataclass
-from . import extended_tasks
+import extended_tasks
 
 
 @dataclass
