@@ -50,6 +50,8 @@ class UniversalAgent:
         self.loss_history: List[float] = []
         self.accuracy_history: List[float] = []
         self.epoch_times: List[float] = []
+        self.weight_history: List[Dict[str, np.ndarray]] = []
+        self.activation_history: List[Dict[str, np.ndarray]] = []
         
     def get_weight_shapes(self) -> Dict[str, Tuple[int, ...]]:
         """Zwraca kształty wag dla tego zadania"""
@@ -152,6 +154,15 @@ class UniversalAgent:
                 self.loss_history.append(loss)
                 self.accuracy_history.append(accuracy)
                 self.epoch_times.append(time.time() - epoch_start)
+            
+            # Zapis wag i aktywacji co 500 epok
+            if epoch % 500 == 0:
+                self.weight_history.append(self.get_weights())
+                self.activation_history.append({
+                    'a0': self.X,  # Wejście
+                    'a1': a1,     # Warstwa ukryta
+                    'a2': a2      # Warstwa wyjściowa
+                })
             
             # Logowanie
             if verbose and epoch % save_interval == 0:

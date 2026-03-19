@@ -20,6 +20,7 @@ sys.path.append(str(Path(__file__).parent))
 from memory import MyceliumMemory
 from tasks import TaskFactory
 from universal_agent import UniversalAgent
+from network_visualizer import NetworkVisualizer
 
 
 # Konfiguracja strony
@@ -347,6 +348,78 @@ def main():
                     use_container_width=True,
                     hide_index=True
                 )
+                
+                # Wizualizacja sieci neuronowej
+                st.markdown("## 🧠 Wizualizacja Sieci Neuronowej")
+                
+                # Stwórz wizualizator
+                visualizer = NetworkVisualizer(
+                    input_dim=task.input_dim,
+                    hidden_dim=hidden_dim,
+                    output_dim=task.output_dim
+                )
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("### 🎯 Aktualna Architektura")
+                    # Ostatnie aktywacje
+                    if agent.activation_history:
+                        last_activations = agent.activation_history[-1]
+                        network_fig = visualizer.create_network_plot(
+                            weights=agent.get_weights(),
+                            activations=last_activations,
+                            title=f"Sieć: {task.name.upper()} ({task.input_dim}→{hidden_dim}→{task.output_dim})"
+                        )
+                        st.plotly_chart(network_fig, use_container_width=True)
+                
+                with col2:
+                    st.markdown("### 📈 Ewolucja Wag")
+                    if agent.weight_history and len(agent.weight_history) > 1:
+                        evolution_fig = visualizer.create_weight_evolution_plot(
+                            agent.weight_history,
+                            title="Jak wagi zmieniają się w czasie"
+                        )
+                        st.plotly_chart(evolution_fig, use_container_width=True)
+                
+                # Heatmap aktywacji
+                if agent.activation_history:
+                    st.markdown("### 🔥 Heatmap Aktywacji")
+                    last_activations = agent.activation_history[-1]
+                    heatmap_fig = visualizer.create_activation_heatmap(
+                        last_activations,
+                        title="Aktywacje neuronów dla ostatniego batcha"
+                    )
+                    st.plotly_chart(heatmap_fig, use_container_width=True)
+                
+                # Informacje o wagach
+                st.markdown("### 📊 Statystyki Wag")
+                weights = agent.get_weights()
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric(
+                        "W1 średnia", 
+                        f"{np.mean(np.abs(weights['W1'])):.4f}"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "W1 odchylenie", 
+                        f"{np.std(weights['W1'])::.4f}"
+                    )
+                
+                with col3:
+                    st.metric(
+                        "W2 średnia", 
+                        f"{np.mean(np.abs(weights['W2'])):.4f}"
+                    )
+                
+                with col4:
+                    st.metric(
+                        "W2 odchylenie", 
+                        f"{np.std(weights['W2'])::.4f}"
+                    )
     
     # Informacje o grzybni
     st.markdown("---")

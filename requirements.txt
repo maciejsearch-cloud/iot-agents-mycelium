@@ -8,3 +8,4 @@ psutil>=5.9.0
 filelock>=3.13.0
 plotly>=5.18.0
 pandas>=2.0.0
+networkx>=3.0.0
