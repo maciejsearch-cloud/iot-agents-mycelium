@@ -209,11 +209,16 @@ def main():
     st.markdown("---")
 
     # Sekcja Auto-Evolution
+    st.write(f"Debug: auto_evo_button = {auto_evo_button}")
+    
     if auto_evo_button:
+        st.write("Debug: Wchodzę do sekcji Auto-Evolution")
         st.markdown("## 🤖 Auto-Evolution System")
         
         # Debug info
+        st.write("Debug: Przed przyciskiem Debug System")
         if st.button("🔍 Debug System", type="secondary"):
+            st.write("Debug: Kliknięto Debug System")
             try:
                 evolution_system = AutoEvolutionSystem()
                 st.success("✅ System zainicjalizowany!")
@@ -236,9 +241,12 @@ def main():
         """)
         
         # Potwierdzenie
+        st.write("Debug: Przed przyciskiem Start Evolution")
         start_evolution = st.button("🚀 Start Auto-Evolution", type="primary")
+        st.write(f"Debug: start_evolution = {start_evolution}")
         
         if start_evolution:
+            st.write("Debug: Kliknięto Start Evolution")
             # Inicjalizuj system
             evolution_system = AutoEvolutionSystem()
             
