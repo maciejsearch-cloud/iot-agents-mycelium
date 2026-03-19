@@ -208,17 +208,16 @@ def main():
 
     st.markdown("---")
 
-    # Sekcja Auto-Evolution
-    st.write(f"Debug: auto_evo_button = {auto_evo_button}")
-    
-    if auto_evo_button:
-        st.write("Debug: Wchodzę do sekcji Auto-Evolution")
+    # Sekcja Auto-Evolution - Session State Pattern
+    if auto_evo_button or 'auto_evolution_page' in st.session_state:
+        # Ustaw session state gdy wejdziemy na stronę
+        if 'auto_evolution_page' not in st.session_state:
+            st.session_state.auto_evolution_page = True
+        
         st.markdown("## 🤖 Auto-Evolution System")
         
         # Debug info
-        st.write("Debug: Przed przyciskiem Debug System")
-        if st.button("🔍 Debug System", type="secondary"):
-            st.write("Debug: Kliknięto Debug System")
+        if st.button("🔍 Debug System", type="secondary", key="debug_system"):
             try:
                 evolution_system = AutoEvolutionSystem()
                 st.success("✅ System zainicjalizowany!")
@@ -226,7 +225,7 @@ def main():
                     'tasks': list(evolution_system.tasks.keys()),
                     'strategies': evolution_system.task_strategies,
                     'mastery_threshold': evolution_system.mastery_threshold,
-                    'max_attempts': evolution_system.max_attempts_per_task
+                    'max_attempts_per_task': evolution_system.max_attempts_per_task
                 })
             except Exception as e:
                 st.error(f"❌ Błąd inicjalizacji: {e}")
@@ -240,19 +239,21 @@ def main():
         - Cel: 95% accuracy na wszystkich zadaniach
         """)
         
-        # Potwierdzenie
-        st.write("Debug: Przed przyciskiem Start Evolution")
-        start_evolution = st.button("🚀 Start Auto-Evolution", type="primary")
-        st.write(f"Debug: start_evolution = {start_evolution}")
+        # Start Evolution z callback
+        def start_evolution_callback():
+            st.session_state.evolution_running = True
+            st.session_state.evolution_results = None
         
-        if start_evolution:
-            st.write("Debug: Kliknięto Start Evolution")
+        if st.button("🚀 Start Auto-Evolution", type="primary", key="start_evolution", on_click=start_evolution_callback):
+            pass  # Callback handles the state
+        
+        # Gdy ewolucja jest uruchomiona
+        if st.session_state.get('evolution_running', False):
             # Inicjalizuj system
             evolution_system = AutoEvolutionSystem()
             
             # Placeholder na status
             status_placeholder = st.empty()
-            progress_placeholder = st.empty()
             results_placeholder = st.empty()
             
             def progress_callback(message):
@@ -264,83 +265,95 @@ def main():
                     status_placeholder.markdown("### 🚀 Inicjalizuję system ewolucji...")
                     evolution_results = evolution_system.run_full_evolution(progress_callback)
                     
+                    # Zapisz wyniki w session state
+                    st.session_state.evolution_results = evolution_results
+                    st.session_state.evolution_running = False
+                    
                     # Pokaż wyniki
                     status_placeholder.markdown("### ✅ Auto-Evolution zakończone!")
+                    
+                    # Rerun aby pokazać wyniki
+                    st.rerun()
                     
             except Exception as e:
                 status_placeholder.markdown(f"### ❌ Błąd Auto-Evolution: {str(e)}")
                 st.error(f"Wystąpił błąd: {e}")
-                st.code(f"""
-                Debug info:
-                - System: {evolution_system}
-                - Tasks: {list(evolution_system.tasks.keys()) if evolution_system else 'None'}
-                - Error: {str(e)}
-                """)
-                return
-                
+                st.session_state.evolution_running = False
+                st.rerun()
+        
+        # Pokaż wyniki gdy są dostępne
+        if st.session_state.get('evolution_results') and not st.session_state.get('evolution_running', False):
+            evolution_results = st.session_state.evolution_results
+            
             # Podsumowanie
-                st.markdown("## 📊 Podsumowanie Ewolucji")
-                
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric(
-                        "🎯 Opanowane zadania",
-                        f"{len(evolution_results['tasks_mastered'])}/{len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])}"
-                    )
-                
-                with col2:
-                    st.metric(
-                        "⏱️ Całkowity czas",
-                        f"{evolution_results['total_time']:.1f}s"
-                    )
-                
-                with col3:
-                    st.metric(
-                        "🎓 Sesji treningu",
-                        evolution_results['total_sessions']
-                    )
-                
-                with col4:
-                    success_rate = len(evolution_results['tasks_mastered']) / (len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])) * 100
-                    st.metric(
-                        "📈 Sukces rate",
-                        f"{success_rate:.1f}%"
-                    )
-                
-                # Szczegółowe wyniki
-                with st.expander("🔍 Szczegółowe wyniki zadań"):
-                    for task_log in evolution_results['evolution_log']:
-                        task_name = task_log['task_name'].upper()
-                        success = task_log['success']
-                        best_acc = task_log['best_accuracy']
-                        attempts = len(task_log['attempts'])
-                        
-                        if success:
-                            st.markdown(f"✅ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
-                        else:
-                            st.markdown(f"❌ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
-                
-                # Optymalne parametry
-                st.markdown("## 🎯 Optymalne Parametry")
-                optimization_summary = evolution_system.get_optimization_summary()
-                
-                for task_name, summary in optimization_summary.items():
-                    with st.expander(f"📊 {task_name.upper()} - Optymalizacja"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.metric("Najlepsza dokładność", f"{summary['best_accuracy']:.3f}")
-                            st.metric("Liczba prób", summary['attempts_needed'])
-                        
-                        with col2:
-                            if summary['optimal_params']:
-                                st.markdown("**Optymalne parametry:**")
-                                st.code(f"""
+            st.markdown("## 📊 Podsumowanie Ewolucji")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(
+                    "🎯 Opanowane zadania",
+                    f"{len(evolution_results['tasks_mastered'])}/{len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])}"
+                )
+            
+            with col2:
+                st.metric(
+                    "⏱️ Całkowity czas",
+                    f"{evolution_results['total_time']:.1f}s"
+                )
+            
+            with col3:
+                st.metric(
+                    "🎓 Sesji treningu",
+                    evolution_results['total_sessions']
+                )
+            
+            with col4:
+                success_rate = len(evolution_results['tasks_mastered']) / (len(evolution_results['tasks_mastered']) + len(evolution_results['tasks_failed'])) * 100
+                st.metric(
+                    "📈 Sukces rate",
+                    f"{success_rate:.1f}%"
+                )
+            
+            # Szczegółowe wyniki
+            with st.expander("🔍 Szczegółowe wyniki zadań"):
+                for task_log in evolution_results['evolution_log']:
+                    task_name = task_log['task_name'].upper()
+                    success = task_log['success']
+                    best_acc = task_log['best_accuracy']
+                    attempts = len(task_log['attempts'])
+                    
+                    if success:
+                        st.markdown(f"✅ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
+                    else:
+                        st.markdown(f"❌ **{task_name}**: {best_acc:.3f} ({attempts} prób)")
+            
+            # Optymalne parametry
+            st.markdown("## 🎯 Optymalne Parametry")
+            optimization_summary = evolution_system.get_optimization_summary()
+            
+            for task_name, summary in optimization_summary.items():
+                with st.expander(f"📊 {task_name.upper()} - Optymalizacja"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.metric("Najlepsza dokładność", f"{summary['best_accuracy']:.3f}")
+                        st.metric("Liczba prób", summary['attempts_needed'])
+                    
+                    with col2:
+                        if summary['optimal_params']:
+                            st.markdown("**Optymalne parametry:**")
+                            st.code(f"""
 Hidden Dim: {summary['optimal_params']['hidden_dim']}
 Learning Rate: {summary['optimal_params']['learning_rate']}
 Epochs: {summary['optimal_params']['epochs']}
 """)
+
+            # Reset button
+            if st.button("🔄 Reset Evolution", key="reset_evolution"):
+                st.session_state.evolution_results = None
+                st.session_state.evolution_running = False
+                st.rerun()
 
     st.markdown("---")
 
