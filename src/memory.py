@@ -94,10 +94,15 @@ class MyceliumMemory:
         fusion_weights = {}
         for key in shapes.keys():
             if key in mycelium_weights:
-                fusion_weights[key] = (
-                    mycelium_weights[key] * alpha + 
-                    random_weights[key] * (1 - alpha)
-                )
+                # Sprawdź czy kształty są kompatybilne
+                if mycelium_weights[key].shape == shapes[key]:
+                    fusion_weights[key] = (
+                        mycelium_weights[key] * alpha + 
+                        random_weights[key] * (1 - alpha)
+                    )
+                else:
+                    # Kształty niekompatybilne - użyj losowych wag
+                    fusion_weights[key] = random_weights[key]
             else:
                 # Jeśli brak wagi w grzybni, użyj losowej
                 fusion_weights[key] = random_weights[key]
@@ -143,6 +148,16 @@ class MyceliumMemory:
             True jeśli pamięć została zaktualizowana, False w przeciwnym razie
         """
         memory = self._read_memory()
+        
+        # Jeśli grzybnia nie jest pusta, sprawdź kompatybilność kształtów
+        if memory["best_weights"] is not None:
+            current_shapes = {key: np.array(value).shape for key, value in memory["best_weights"].items()}
+            new_shapes = {key: value.shape for key, value in weights.items()}
+            
+            # Jeśli kształty się różnią, zresetuj grzybnię (zadanie o innej architekturze)
+            if current_shapes != new_shapes:
+                self._initialize_empty_memory()
+                memory = self._read_memory()
         
         # Sprawdź czy nowy loss jest lepszy
         if loss >= memory["best_loss"]:

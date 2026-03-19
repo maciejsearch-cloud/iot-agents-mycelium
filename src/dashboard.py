@@ -72,51 +72,64 @@ def load_mycelium_stats():
 
 def train_agent_sync(task_name: str, hidden_dim: int, learning_rate: float, epochs: int, alpha: float):
     """Synchroniczny trening agenta (dla Streamlit)"""
-    # Pobierz zadanie
-    task = TaskFactory.get_task(task_name)
-    
-    # Inicjalizuj Mycelium
-    mycelium = MyceliumMemory("../data/mycelium_memory.json")
-    
-    # Pobierz wagi z grzybni
-    shapes = {
-        'W1': (task.input_dim, hidden_dim),
-        'b1': (1, hidden_dim),
-        'W2': (hidden_dim, task.output_dim),
-        'b2': (1, task.output_dim)
-    }
-    
-    initial_weights = mycelium.get_fusion_weights(shapes, alpha=alpha)
-    
-    # Stwórz agenta
-    agent = UniversalAgent(
-        task=task,
-        hidden_dim=hidden_dim,
-        learning_rate=learning_rate,
-        initial_weights=initial_weights
-    )
-    
-    # Trening
-    results = agent.train(epochs=epochs, verbose=False)
-    
-    # Próba aktualizacji grzybni
-    weights = agent.get_weights()
-    updated = mycelium.update_memory(
-        weights=weights,
-        loss=results['final_loss'],
-        metadata={
-            'task_name': task_name,
-            'accuracy': results['final_accuracy'],
-            'training_time': results['training_time'],
-            'hidden_dim': hidden_dim,
-            'learning_rate': learning_rate
+    try:
+        # Pobierz zadanie
+        task = TaskFactory.get_task(task_name)
+        
+        # Inicjalizuj Mycelium
+        mycelium = MyceliumMemory("../data/mycelium_memory.json")
+        
+        # Pobierz wagi z grzybni
+        shapes = {
+            'W1': (task.input_dim, hidden_dim),
+            'b1': (1, hidden_dim),
+            'W2': (hidden_dim, task.output_dim),
+            'b2': (1, task.output_dim)
         }
-    )
-    
-    results['updated_mycelium'] = updated
-    results['agent'] = agent
-    
-    return results
+        
+        initial_weights = mycelium.get_fusion_weights(shapes, alpha=alpha)
+        
+        # Stwórz agenta
+        agent = UniversalAgent(
+            task=task,
+            hidden_dim=hidden_dim,
+            learning_rate=learning_rate,
+            initial_weights=initial_weights
+        )
+        
+        # Trening
+        results = agent.train(epochs=epochs, verbose=False)
+        
+        # Próba aktualizacji grzybni
+        weights = agent.get_weights()
+        updated = mycelium.update_memory(
+            weights=weights,
+            loss=results['final_loss'],
+            metadata={
+                'task_name': task_name,
+                'accuracy': results['final_accuracy'],
+                'training_time': results['training_time'],
+                'hidden_dim': hidden_dim,
+                'learning_rate': learning_rate
+            }
+        )
+        
+        results['updated_mycelium'] = updated
+        results['agent'] = agent
+        
+        return results
+
+    except Exception as e:
+        # Obsługa błędów - zwróć informacje o błędzie
+        return {
+            'error': str(e),
+            'task_name': task_name,
+            'final_loss': float('inf'),
+            'final_accuracy': 0.0,
+            'training_time': 0.0,
+            'updated_mycelium': False,
+            'agent': None
+        }
 
 
 def main():
@@ -219,10 +232,20 @@ def main():
             end_time = time.time()
             
             progress_bar.progress(100)
-            status_text.text(f"✅ Trening zakończony w {end_time - start_time:.2f}s")
             
-            # Wyniki
-            st.markdown("## 📊 Wyniki Treningu")
+            # Sprawdź czy wystąpił błąd
+            if 'error' in results:
+                status_text.text("❌ Wystąpił błąd podczas treningu")
+                st.error(f"Błąd: {results['error']}")
+                st.markdown("### 🔧 Możliwe rozwiązania:")
+                st.markdown("- Spróbuj zresetować grzybnię (przycisk '🔄 Reset Grzybni')")
+                st.markdown("- Zmniejsz liczbę neuronów ukrytych")
+                st.markdown("- Sprawdź czy parametry są poprawne")
+            else:
+                status_text.text(f"✅ Trening zakończony w {end_time - start_time:.2f}s")
+                
+                # Wyniki
+                st.markdown("## 📊 Wyniki Treningu")
             
             col1, col2, col3, col4 = st.columns(4)
             
@@ -255,74 +278,75 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Wykresy
-            agent = results['agent']
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Wykres Loss
-                fig_loss = go.Figure()
-                fig_loss.add_trace(go.Scatter(
-                    y=agent.loss_history,
-                    mode='lines',
-                    name='Loss',
-                    line=dict(color='#ff6b6b', width=2)
-                ))
-                fig_loss.update_layout(
-                    title="Krzywa Straty",
-                    xaxis_title="Krok (x100)",
-                    yaxis_title="Loss",
-                    height=400
+            # Wykresy i predykcje - tylko jeśli nie było błędu
+            if 'agent' in results and results['agent'] is not None:
+                agent = results['agent']
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Wykres Loss
+                    fig_loss = go.Figure()
+                    fig_loss.add_trace(go.Scatter(
+                        y=agent.loss_history,
+                        mode='lines',
+                        name='Loss',
+                        line=dict(color='#ff6b6b', width=2)
+                    ))
+                    fig_loss.update_layout(
+                        title="Krzywa Straty",
+                        xaxis_title="Krok (x100)",
+                        yaxis_title="Loss",
+                        height=400
+                    )
+                    st.plotly_chart(fig_loss, use_container_width=True)
+                
+                with col2:
+                    # Wykres Accuracy
+                    fig_acc = go.Figure()
+                    fig_acc.add_trace(go.Scatter(
+                        y=agent.accuracy_history,
+                        mode='lines',
+                        name='Accuracy',
+                        line=dict(color='#51cf66', width=2)
+                    ))
+                    fig_acc.update_layout(
+                        title="Dokładność",
+                        xaxis_title="Krok (x100)",
+                        yaxis_title="Accuracy",
+                        yaxis=dict(range=[0, 1.1]),
+                        height=400
+                    )
+                    st.plotly_chart(fig_acc, use_container_width=True)
+                
+                # Predykcje
+                st.markdown("## 🎯 Predykcje")
+                
+                eval_results = agent.evaluate(verbose=False)
+                
+                # Tabela z wynikami
+                df = pd.DataFrame({
+                    'Wejście': [str(x) for x in agent.X.tolist()],
+                    'Oczekiwane': agent.y.flatten().tolist(),
+                    'Predykcja (raw)': eval_results['raw_predictions'].flatten().tolist(),
+                    'Predykcja (binary)': eval_results['predictions'].flatten().tolist(),
+                    'Poprawne': (eval_results['predictions'].flatten() == agent.y.flatten()).tolist()
+                })
+                
+                # Kolorowanie
+                def highlight_correct(row):
+                    if row['Poprawne']:
+                        return ['background-color: #d4edda'] * len(row)
+                    else:
+                        return ['background-color: #f8d7da'] * len(row)
+                
+                st.dataframe(
+                    df.style.apply(highlight_correct, axis=1).format({
+                        'Predykcja (raw)': '{:.4f}'
+                    }),
+                    use_container_width=True,
+                    hide_index=True
                 )
-                st.plotly_chart(fig_loss, use_container_width=True)
-            
-            with col2:
-                # Wykres Accuracy
-                fig_acc = go.Figure()
-                fig_acc.add_trace(go.Scatter(
-                    y=agent.accuracy_history,
-                    mode='lines',
-                    name='Accuracy',
-                    line=dict(color='#51cf66', width=2)
-                ))
-                fig_acc.update_layout(
-                    title="Dokładność",
-                    xaxis_title="Krok (x100)",
-                    yaxis_title="Accuracy",
-                    yaxis=dict(range=[0, 1.1]),
-                    height=400
-                )
-                st.plotly_chart(fig_acc, use_container_width=True)
-            
-            # Predykcje
-            st.markdown("## 🎯 Predykcje")
-            
-            eval_results = agent.evaluate(verbose=False)
-            
-            # Tabela z wynikami
-            df = pd.DataFrame({
-                'Wejście': [str(x) for x in agent.X.tolist()],
-                'Oczekiwane': agent.y.flatten().tolist(),
-                'Predykcja (raw)': eval_results['raw_predictions'].flatten().tolist(),
-                'Predykcja (binary)': eval_results['predictions'].flatten().tolist(),
-                'Poprawne': (eval_results['predictions'].flatten() == agent.y.flatten()).tolist()
-            })
-            
-            # Kolorowanie
-            def highlight_correct(row):
-                if row['Poprawne']:
-                    return ['background-color: #d4edda'] * len(row)
-                else:
-                    return ['background-color: #f8d7da'] * len(row)
-            
-            st.dataframe(
-                df.style.apply(highlight_correct, axis=1).format({
-                    'Predykcja (raw)': '{:.4f}'
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
     
     # Informacje o grzybni
     st.markdown("---")
