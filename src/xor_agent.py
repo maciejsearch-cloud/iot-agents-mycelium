@@ -1,0 +1,327 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import psutil
+import time
+from typing import Tuple, List, Dict, Any
+import json
+from datetime import datetime
+
+
+class XORAgent:
+    """Agent uczący się logiki XOR z wizualizacją i monitoringiem systemu"""
+    
+    def __init__(self, hidden_dim: int = 4, learning_rate: float = 0.1):
+        self.hidden_dim = hidden_dim
+        self.learning_rate = learning_rate
+        self.input_dim = 2
+        self.output_dim = 1
+        
+        # Dane treningowe XOR
+        self.X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+        self.y = np.array([[0], [1], [1], [0]])
+        
+        # Inicjalizacja wag (losowe - "dziecko")
+        np.random.seed(42)
+        self.W1 = np.random.randn(self.input_dim, hidden_dim) * 0.1
+        self.b1 = np.zeros((1, hidden_dim))
+        self.W2 = np.random.randn(hidden_dim, self.output_dim) * 0.1
+        self.b2 = np.zeros((1, self.output_dim))
+        
+        # Historia treningu
+        self.loss_history: List[float] = []
+        self.accuracy_history: List[float] = []
+        self.system_metrics: List[Dict[str, Any]] = []
+        self.weight_history: List[Dict[str, np.ndarray]] = []
+        
+    def relu(self, z: np.ndarray) -> np.ndarray:
+        return np.maximum(0, z)
+    
+    def relu_derivative(self, z: np.ndarray) -> np.ndarray:
+        return np.where(z > 0, 1.0, 0.0)
+    
+    def sigmoid(self, z: np.ndarray) -> np.ndarray:
+        return 1 / (1 + np.exp(-z))
+    
+    def sigmoid_derivative(self, a: np.ndarray) -> np.ndarray:
+        return a * (1 - a)
+    
+    def get_system_metrics(self) -> Dict[str, float]:
+        """Pobiera metryki systemowe"""
+        cpu_percent = psutil.cpu_percent(interval=None)
+        memory = psutil.virtual_memory()
+        process = psutil.Process()
+        
+        return {
+            'cpu_percent': cpu_percent,
+            'memory_percent': memory.percent,
+            'memory_used_gb': memory.used / (1024**3),
+            'process_memory_mb': process.memory_info().rss / (1024**2)
+        }
+    
+    def forward_pass(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Propagacja w przód"""
+        z1 = X @ self.W1 + self.b1
+        a1 = self.relu(z1)
+        z2 = a1 @ self.W2 + self.b2
+        a2 = self.sigmoid(z2)
+        return z1, a1, z2, a2
+    
+    def calculate_loss(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        """Oblicza stratę MSE"""
+        return float(np.mean((y_true - y_pred) ** 2))
+    
+    def calculate_accuracy(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        """Oblicza dokładność (próg 0.5)"""
+        predictions = (y_pred > 0.5).astype(int)
+        return float(np.mean(predictions == y_true))
+    
+    def backward_pass(self, X: np.ndarray, y: np.ndarray, z1: np.ndarray, a1: np.ndarray, a2: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Propagacja wsteczna"""
+        d2 = (y - a2) * self.sigmoid_derivative(a2)
+        dW2 = a1.T @ d2
+        db2 = np.sum(d2, axis=0, keepdims=True)
+        
+        d1 = d2 @ self.W2.T * self.relu_derivative(z1)
+        dW1 = X.T @ d1
+        db1 = np.sum(d1, axis=0, keepdims=True)
+        
+        return dW1, db1, dW2, db2
+    
+    def update_weights(self, dW1: np.ndarray, db1: np.ndarray, dW2: np.ndarray, db2: np.ndarray):
+        """Aktualizacja wag"""
+        self.W2 += self.learning_rate * dW2
+        self.b2 += self.learning_rate * db2
+        self.W1 += self.learning_rate * dW1
+        self.b1 += self.learning_rate * db1
+    
+    def train(self, epochs: int = 10000, save_interval: int = 1000):
+        """Trening agenta z monitoringiem"""
+        print(f"=== START TRENINGU - agent zaczyna jako 'dziecko' ===")
+        print(f"Epoki: {epochs}, Learning rate: {self.learning_rate}")
+        print(f"Architektura: {self.input_dim}→{self.hidden_dim}→{self.output_dim}")
+        
+        start_time = time.time()
+        
+        for epoch in range(epochs):
+            # Forward pass
+            z1, a1, z2, a2 = self.forward_pass(self.X)
+            
+            # Obliczanie metryk
+            loss = self.calculate_loss(self.y, a2)
+            accuracy = self.calculate_accuracy(self.y, a2)
+            
+            # Zapis historii
+            if epoch % 100 == 0:
+                self.loss_history.append(loss)
+                self.accuracy_history.append(accuracy)
+                self.system_metrics.append(self.get_system_metrics())
+            
+            # Zapis wag co save_interval
+            if epoch % save_interval == 0:
+                self.weight_history.append({
+                    'epoch': epoch,
+                    'W1': self.W1.copy(),
+                    'W2': self.W2.copy(),
+                    'loss': loss,
+                    'accuracy': accuracy
+                })
+            
+            # Backward pass
+            dW1, db1, dW2, db2 = self.backward_pass(self.X, self.y, z1, a1, a2)
+            
+            # Aktualizacja wag
+            self.update_weights(dW1, db1, dW2, db2)
+            
+            # Logowanie postępu
+            if epoch % 1000 == 0:
+                metrics = self.get_system_metrics()
+                print(f"Epoch {epoch:5d} | Loss: {loss:.6f} | Acc: {accuracy:.3f} | CPU: {metrics['cpu_percent']:.1f}% | RAM: {metrics['memory_percent']:.1f}%")
+        
+        end_time = time.time()
+        print(f"\n=== TRENING ZAKOŃCZONY w {end_time - start_time:.2f}s ===")
+        
+        # Finalna ewaluacja
+        self.evaluate()
+    
+    def evaluate(self):
+        """Finalna ewaluacja agenta"""
+        print("\n=== EWALUACJA KOŃCOWA ===")
+        z1, a1, z2, a2 = self.forward_pass(self.X)
+        
+        print("Wejścia:")
+        print(self.X)
+        print("\nPredykcje (surowe):")
+        print(np.round(a2, 4))
+        print("\nPredykcje (binarne):")
+        predictions = (a2 > 0.5).astype(int)
+        print(predictions)
+        print("\nOczekiwane:")
+        print(self.y)
+        
+        final_accuracy = self.calculate_accuracy(self.y, a2)
+        final_loss = self.calculate_loss(self.y, a2)
+        print(f"\nFinalna dokładność: {final_accuracy:.3f}")
+        print(f"Finalna strata: {final_loss:.6f}")
+        
+        if final_accuracy >= 0.95:
+            print("✅ Agent nauczył się logiki XOR!")
+        else:
+            print("❌ Agent potrzebuje więcej treningu")
+    
+    def visualize_training(self, save_path: str = None):
+        """Wizualizacja procesu treningu"""
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig.suptitle('XOR Agent - Proces Treningu', fontsize=16)
+        
+        # Loss curve
+        axes[0, 0].plot(self.loss_history, 'b-', linewidth=2)
+        axes[0, 0].set_title('Krzywa straty')
+        axes[0, 0].set_xlabel('Krok (x100)')
+        axes[0, 0].set_ylabel('Loss (MSE)')
+        axes[0, 0].grid(True, alpha=0.3)
+        
+        # Accuracy curve
+        axes[0, 1].plot(self.accuracy_history, 'g-', linewidth=2)
+        axes[0, 1].set_title('Dokładność')
+        axes[0, 1].set_xlabel('Krok (x100)')
+        axes[0, 1].set_ylabel('Accuracy')
+        axes[0, 1].set_ylim(0, 1.1)
+        axes[0, 1].grid(True, alpha=0.3)
+        
+        # CPU usage
+        cpu_values = [m['cpu_percent'] for m in self.system_metrics]
+        axes[1, 0].plot(cpu_values, 'r-', linewidth=2)
+        axes[1, 0].set_title('Wykorzystanie CPU')
+        axes[1, 0].set_xlabel('Krok (x100)')
+        axes[1, 0].set_ylabel('CPU %')
+        axes[1, 0].grid(True, alpha=0.3)
+        
+        # Memory usage
+        memory_values = [m['memory_percent'] for m in self.system_metrics]
+        axes[1, 1].plot(memory_values, 'm-', linewidth=2)
+        axes[1, 1].set_title('Wykorzystanie RAM')
+        axes[1, 1].set_xlabel('Krok (x100)')
+        axes[1, 1].set_ylabel('Memory %')
+        axes[1, 1].grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Wizualizacja zapisana w: {save_path}")
+        else:
+            plt.show()
+    
+    def visualize_network(self, save_path: str = None):
+        """Wizualizacja architektury sieci"""
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        
+        # Pozycje neuronów
+        input_pos = np.array([[1, 2], [1, 4]])  # 2 neurony wejściowe
+        hidden_pos = np.array([[3, 1.5], [3, 2.5], [3, 3.5], [3, 4.5]])  # 4 neurony ukryte
+        output_pos = np.array([[5, 3]])  # 1 neuron wyjściowy
+        
+        # Rysowanie neuronów
+        for pos in input_pos:
+            circle = plt.Circle(pos, 0.3, color='lightblue', ec='black', linewidth=2)
+            ax.add_patch(circle)
+        
+        for pos in hidden_pos:
+            circle = plt.Circle(pos, 0.3, color='lightgreen', ec='black', linewidth=2)
+            ax.add_patch(circle)
+        
+        circle = plt.Circle(output_pos[0], 0.3, color='lightcoral', ec='black', linewidth=2)
+        ax.add_patch(circle)
+        
+        # Rysowanie wag (grubość linii = siła połączenia)
+        # Wejście -> ukryte
+        for i, in_pos in enumerate(input_pos):
+            for j, hid_pos in enumerate(hidden_pos):
+                weight = self.W1[i, j]
+                linewidth = abs(weight) * 5  # Skalowanie grubości
+                color = 'red' if weight > 0 else 'blue'
+                alpha = min(abs(weight), 1.0)
+                ax.plot([in_pos[0], hid_pos[0]], [in_pos[1], hid_pos[1]], 
+                       color=color, linewidth=linewidth, alpha=alpha)
+        
+        # Ukryte -> wyjście
+        for j, hid_pos in enumerate(hidden_pos):
+            weight = self.W2[j, 0]
+            linewidth = abs(weight) * 5
+            color = 'red' if weight > 0 else 'blue'
+            alpha = min(abs(weight), 1.0)
+            ax.plot([hid_pos[0], output_pos[0, 0]], [hid_pos[1], output_pos[0, 1]], 
+                   color=color, linewidth=linewidth, alpha=alpha)
+        
+        # Etykiety
+        ax.text(0.5, 2, 'X₁', fontsize=14, ha='center', va='center')
+        ax.text(0.5, 4, 'X₂', fontsize=14, ha='center', va='center')
+        ax.text(3, 0.5, 'Hidden Layer', fontsize=12, ha='center')
+        ax.text(5.5, 3, 'Y', fontsize=14, ha='center', va='center')
+        
+        # Tytuł i formatowanie
+        ax.set_title(f'Sieć Neuronowa XOR (2→{self.hidden_dim}→1)', fontsize=16)
+        ax.set_xlim(0, 6)
+        ax.set_ylim(0, 5)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        
+        # Legenda wag
+        ax.plot([], [], 'r-', linewidth=3, label='Waga dodatnia')
+        ax.plot([], [], 'b-', linewidth=3, label='Waga ujemna')
+        ax.legend(loc='upper right')
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Wizualizacja sieci zapisana w: {save_path}")
+        else:
+            plt.show()
+    
+    def save_training_data(self, filepath: str):
+        """Zapisuje dane treningowe do JSON"""
+        data = {
+            'timestamp': datetime.now().isoformat(),
+            'architecture': {
+                'input_dim': self.input_dim,
+                'hidden_dim': self.hidden_dim,
+                'output_dim': self.output_dim,
+                'learning_rate': self.learning_rate
+            },
+            'final_weights': {
+                'W1': self.W1.tolist(),
+                'b1': self.b1.tolist(),
+                'W2': self.W2.tolist(),
+                'b2': self.b2.tolist()
+            },
+            'training_history': {
+                'loss_history': self.loss_history,
+                'accuracy_history': self.accuracy_history,
+                'system_metrics': self.system_metrics
+            },
+            'final_metrics': {
+                'final_loss': self.loss_history[-1] if self.loss_history else None,
+                'final_accuracy': self.accuracy_history[-1] if self.accuracy_history else None
+            }
+        }
+        
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        print(f"Dane treningowe zapisane w: {filepath}")
+
+
+if __name__ == "__main__":
+    # Tworzenie i trening agenta
+    agent = XORAgent(hidden_dim=4, learning_rate=0.1)
+    
+    # Trening z monitoringiem
+    agent.train(epochs=10000, save_interval=1000)
+    
+    # Wizualizacje
+    agent.visualize_training()
+    agent.visualize_network()
+    
+    # Zapis danych
+    agent.save_training_data("../data/training_results.json")
