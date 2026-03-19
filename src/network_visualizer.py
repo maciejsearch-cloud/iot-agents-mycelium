@@ -65,19 +65,22 @@ class NetworkVisualizer:
                     idx = int(node_name.split('_')[1])
                     activation = activations['a0'][0, idx] if idx < activations['a0'].shape[1] else 0
                     alpha = max(0.1, min(1.0, abs(activation)))  # Ogranicz alpha do 0.1-1.0
-                    color = f'rgba(0, 123, 255, {alpha})'
+                    alpha_rounded = round(alpha, 3)  # Zaokrągl do 3 miejsc po przecinku
+                    color = f'rgba(0, 123, 255, {alpha_rounded})'
                     size = 15 + abs(activation) * 15
                 elif 'hidden_' in node_name and 'a1' in activations:
                     idx = int(node_name.split('_')[1])
                     activation = activations['a1'][0, idx] if idx < activations['a1'].shape[1] else 0
                     alpha = max(0.1, min(1.0, abs(activation)))  # Ogranicz alpha do 0.1-1.0
-                    color = f'rgba(40, 167, 69, {alpha})'
+                    alpha_rounded = round(alpha, 3)  # Zaokrągl do 3 miejsc po przecinku
+                    color = f'rgba(40, 167, 69, {alpha_rounded})'
                     size = 15 + abs(activation) * 15
                 elif 'output_' in node_name and 'a2' in activations:
                     idx = int(node_name.split('_')[1])
                     activation = activations['a2'][0, idx] if idx < activations['a2'].shape[1] else 0
                     alpha = max(0.1, min(1.0, abs(activation)))  # Ogranicz alpha do 0.1-1.0
-                    color = f'rgba(255, 193, 7, {alpha})'
+                    alpha_rounded = round(alpha, 3)  # Zaokrągl do 3 miejsc po przecinku
+                    color = f'rgba(255, 193, 7, {alpha_rounded})'
                     size = 15 + abs(activation) * 15
             
             # Dodaj neuron

@@ -284,6 +284,8 @@ def main():
         # Pokaż wyniki gdy są dostępne
         if st.session_state.get('evolution_results') and not st.session_state.get('evolution_running', False):
             evolution_results = st.session_state.evolution_results
+            # Inicjalizuj system dla optymalizacji
+            evolution_system = AutoEvolutionSystem()
             
             # Podsumowanie
             st.markdown("## 📊 Podsumowanie Ewolucji")
