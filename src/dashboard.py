@@ -22,6 +22,7 @@ from tasks import TaskFactory
 from universal_agent import UniversalAgent
 from network_visualizer import NetworkVisualizer
 from iq_calculator import AgentIQCalculator
+from persistent_agent import get_persistent_agent
 
 
 # Konfiguracja strony
@@ -73,51 +74,21 @@ def load_mycelium_stats():
 
 
 def train_agent_sync(task_name: str, hidden_dim: int, learning_rate: float, epochs: int, alpha: float):
-    """Synchroniczny trening agenta (dla Streamlit)"""
+    """Prawdziwy trening agenta z ciągłą pamięcią"""
     try:
-        # Pobierz zadanie
-        task = TaskFactory.get_task(task_name)
-
-        # Inicjalizuj Mycelium
-        mycelium = MyceliumMemory("../data/mycelium_memory.json")
-
-        # Pobierz wagi z grzybni
-        shapes = {
-            'W1': (task.input_dim, hidden_dim),
-            'b1': (1, hidden_dim),
-            'W2': (hidden_dim, task.output_dim),
-            'b2': (1, task.output_dim)
-        }
-
-        initial_weights = mycelium.get_fusion_weights(shapes, alpha=alpha)
-
-        # Stwórz agenta
-        agent = UniversalAgent(
-            task=task,
-            hidden_dim=hidden_dim,
-            learning_rate=learning_rate,
-            initial_weights=initial_weights
-        )
-
-        # Trening
-        results = agent.train(epochs=epochs, verbose=False)
-
-        # Próba aktualizacji grzybni
-        weights = agent.get_weights()
-        updated = mycelium.update_memory(
-            weights=weights,
-            loss=results['final_loss'],
-            metadata={
-                'task_name': task_name,
-                'accuracy': results['final_accuracy'],
-                'training_time': results['training_time'],
-                'hidden_dim': hidden_dim,
-                'learning_rate': learning_rate
-            }
-        )
-
-        results['updated_mycelium'] = updated
-        results['agent'] = agent
+        # Pobierz persistent agenta (ten sam między sesjami!)
+        persistent_agent = get_persistent_agent(task_name, hidden_dim, learning_rate)
+        
+        # Kontynuuj trening (prawdziwe uczenie!)
+        results = persistent_agent.continue_training(epochs=epochs)
+        
+        # Dodaj dodatkowe metryki
+        learning_stats = persistent_agent.get_learning_stats()
+        results.update(learning_stats)
+        
+        results['task_name'] = task_name
+        results['agent'] = persistent_agent.agent
+        results['persistent_agent'] = persistent_agent
 
         return results
 
@@ -130,7 +101,9 @@ def train_agent_sync(task_name: str, hidden_dim: int, learning_rate: float, epoc
             'final_accuracy': 0.0,
             'training_time': 0.0,
             'updated_mycelium': False,
-            'agent': None
+            'agent': None,
+            'total_sessions': 0,
+            'learning_speed': 0.0
         }
 
 
@@ -369,6 +342,98 @@ def main():
                         width='stretch',
                         hide_index=True
                     )
+                    
+                    # 📊 Learning Stats - Prawdziwe metryki uczenia!
+                    st.markdown("## 📊 Learning Stats - Prawdziwe Uczenie")
+                    
+                    # Pobierz statystyki uczenia
+                    if 'persistent_agent' in results:
+                        learning_stats = results['persistent_agent'].get_learning_stats()
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric(
+                                "🎓 Sesji Treningu",
+                                learning_stats['total_sessions']
+                            )
+                        
+                        with col2:
+                            st.metric(
+                                "⏱️ Całkowity czas",
+                                f"{learning_stats['total_time']:.1f}s"
+                            )
+                        
+                        with col3:
+                            st.metric(
+                                "📈 Prędkość uczenia",
+                                f"{learning_stats['average_speed']:.4f}/s"
+                            )
+                        
+                        with col4:
+                            trend_emoji = {
+                                'improving': '📈',
+                                'declining': '📉', 
+                                'stable': '➡️',
+                                'insufficient_data': '❓'
+                            }.get(learning_stats['improvement_trend'], '❓')
+                            
+                            st.metric(
+                                f"Trend {trend_emoji}",
+                                learning_stats['improvement_trend'].title()
+                            )
+                        
+                        # Szczegółowe statystyki
+                        with st.expander("🔍 Szczegółowe statystyki uczenia"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.markdown("**Postęp:**")
+                                st.metric("Pierwsza dokładność", f"{learning_stats['first_accuracy']:.3f}")
+                                st.metric("Najlepsza dokładność", f"{learning_stats['best_accuracy']:.3f}")
+                                st.metric("Całkowita poprawa", f"{learning_stats['total_improvement']:+.3f}")
+                                st.metric("Łącznie epok", learning_stats['total_epochs'])
+                            
+                            with col2:
+                                st.markdown("**Efektywność:**")
+                                if learning_stats['total_epochs'] > 0:
+                                    accuracy_per_epoch = learning_stats['total_improvement'] / learning_stats['total_epochs']
+                                    st.metric("Poprawa/epokę", f"{accuracy_per_epoch:.6f}")
+                                
+                                if learning_stats['total_time'] > 0:
+                                    accuracy_per_second = learning_stats['total_improvement'] / learning_stats['total_time']
+                                    st.metric("Poprawa/sekundę", f"{accuracy_per_second:.6f}")
+                                
+                                if learning_stats['total_sessions'] > 0:
+                                    epochs_per_session = learning_stats['total_epochs'] / learning_stats['total_sessions']
+                                    st.metric("Epok/sesję", f"{epochs_per_session:.0f}")
+                        
+                        # Historia sesji
+                        if learning_stats['total_sessions'] > 1:
+                            st.markdown("### 📈 Historia Sesji")
+                            
+                            # Wykres postępu w sesjach
+                            session_accuracies = [s['final_accuracy'] for s in results['persistent_agent'].training_sessions]
+                            session_numbers = list(range(1, len(session_accuracies) + 1))
+                            
+                            fig_sessions = go.Figure()
+                            fig_sessions.add_trace(go.Scatter(
+                                x=session_numbers,
+                                y=session_accuracies,
+                                mode='lines+markers',
+                                name='Dokładność w sesjach',
+                                line=dict(color='#ff6b6b', width=2),
+                                marker=dict(size=8)
+                            ))
+                            
+                            fig_sessions.update_layout(
+                                title="Postęp w sesjach treningowych",
+                                xaxis_title="Numer sesji",
+                                yaxis_title="Dokładność",
+                                height=300
+                            )
+                            
+                            st.plotly_chart(fig_sessions, width='stretch')
 
                     # Wizualizacja sieci neuronowej
                     st.markdown("## 🧠 Wizualizacja Sieci Neuronowej")
