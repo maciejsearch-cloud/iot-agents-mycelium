@@ -134,6 +134,23 @@ def train_agent_sync(task_name: str, hidden_dim: int, learning_rate: float, epoc
         }
 
 
+def calculate_agent_iq(agent) -> dict:
+    """Oblicza IQ agenta i zwraca wyniki"""
+    try:
+        iq_calculator = AgentIQCalculator()
+        iq_results = iq_calculator.calculate_iq(agent)
+        return iq_results
+    except Exception as e:
+        return {
+            'total_iq': 0,
+            'breakdown': {'boolean_logic': 0, 'pattern_recognition': 0, 'math_foundation': 0, 'sequence_logic': 0, 'memory_retention': 0},
+            'stage': {'name': 'foundation', 'description': 'Logika podstawowa', 'progress': 0.0},
+            'next_stage_requirements': {'next_stage': 'patterns', 'needed_iq': 51},
+            'evolution_progress': 0.0,
+            'error': str(e)
+        }
+
+
 def main():
     # Header
     st.markdown('<h1 class="main-header">🍄 IoT Agents Dashboard</h1>', unsafe_allow_html=True)
