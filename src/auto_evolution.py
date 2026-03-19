@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 """
-Auto Evolution System - Autonomiczny trening agentów
+Continuous Evolution System - PRAWDZIWY ciągły rozwój AI
 """
 
 import time
 import numpy as np
 from datetime import datetime
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 from persistent_agent import get_persistent_agent
 from tasks import TaskFactory
 import json
+import logging
+from pathlib import Path
 
 
-class AutoEvolutionSystem:
+class ContinuousEvolutionSystem:
     """
-    System który automatycznie trenuje agentów na wszystkich zadaniach
-    z optymalizacją parametrów i śledzeniem postępów
+    PRAWDZIWY system ciągłej ewolucji AI:
+    - Uczy się WSZYSTKICH zadań do perfekcji
+    - Zapamiętuje WSZYSTKIE postępy na zawsze
+    - Rozwija się SAMOISTNIE bez końca
+    - Zero symulacji - prawdziwe uczenie
     """
     
     def __init__(self):
@@ -25,20 +30,64 @@ class AutoEvolutionSystem:
         self.mastered_tasks = set()
         self.failed_attempts = {}
         self.optimization_history = {}
+        self.continuous_mode = True  # Tryb ciągłego uczenia
+        self.perfection_threshold = 0.98  # 98% accuracy to mastery
+        self.mastery_threshold = self.perfection_threshold  # Dla kompatybilności
+        self.max_continuous_attempts = 50  # Max prób na zadanie w trybie ciągłym
+        self.max_attempts_per_task = self.max_continuous_attempts  # Dla kompatybilności
         
-        # Strategie uczenia dla różnych zadań
+        # Logging dla śledzenia prawdziwego postępu
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        
+        # Strategie uczenia dla wszystkich zadań
         self.task_strategies = {
+            # Logiczne - podstawowe
             'and': {'base_epochs': 1000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.3, 0.5, 0.7]},
             'or': {'base_epochs': 1000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.3, 0.5, 0.7]},
-            'not': {'base_epochs': 800, 'hidden_dims': [3, 4, 5], 'learning_rates': [0.3, 0.5, 0.7]},
-            'xor': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8, 10], 'learning_rates': [0.2, 0.4, 0.6]},
-            'nand': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8, 10], 'learning_rates': [0.2, 0.4, 0.6]},
-            'nor': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8, 10], 'learning_rates': [0.2, 0.4, 0.6]}
+            'nand': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.4, 0.6]},
+            'nor': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.4, 0.6]},
+            'xnor': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8, 10], 'learning_rates': [0.2, 0.4, 0.6]},
+            
+            # Logiczne - zaawansowane
+            'xor': {'base_epochs': 3000, 'hidden_dims': [4, 6, 8, 10, 12], 'learning_rates': [0.1, 0.2, 0.3, 0.4]},
+            '3bit_parity': {'base_epochs': 4000, 'hidden_dims': [6, 8, 10, 12], 'learning_rates': [0.1, 0.2, 0.3]},
+            '4bit_parity': {'base_epochs': 5000, 'hidden_dims': [8, 10, 12, 14], 'learning_rates': [0.1, 0.2, 0.3]},
+            'majority': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'minority': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'implication': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'equivalence': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            
+            # Arytmetyczne
+            'addition_mod2': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'subtraction_mod2': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'multiplication_mod2': {'base_epochs': 1500, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'is_even': {'base_epochs': 800, 'hidden_dims': [3, 4, 5], 'learning_rates': [0.3, 0.5, 0.7]},
+            'is_power_of_two': {'base_epochs': 3000, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
+            'greater_than': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            
+            # Pattern recognition
+            'alternating_pattern': {'base_epochs': 2500, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
+            'repeating_pattern': {'base_epochs': 2500, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
+            'symmetric_pattern': {'base_epochs': 2500, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
+            'palindrome': {'base_epochs': 4000, 'hidden_dims': [8, 10, 12], 'learning_rates': [0.1, 0.2, 0.3]},
+            'monotonic_sequence': {'base_epochs': 3000, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
+            
+            # Sequence learning
+            'fibonacci_mod2': {'base_epochs': 5000, 'hidden_dims': [8, 10, 12, 14], 'learning_rates': [0.05, 0.1, 0.2]},
+            'prime_detection': {'base_epochs': 6000, 'hidden_dims': [10, 12, 14, 16], 'learning_rates': [0.05, 0.1, 0.15]},
+            'count_ones': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'hamming_weight': {'base_epochs': 2000, 'hidden_dims': [4, 6, 8], 'learning_rates': [0.2, 0.3, 0.4]},
+            'gray_code': {'base_epochs': 4000, 'hidden_dims': [8, 10, 12], 'learning_rates': [0.1, 0.2, 0.3]},
+            
+            # Complex logic
+            'boolean_expression': {'base_epochs': 6000, 'hidden_dims': [10, 12, 14, 16], 'learning_rates': [0.05, 0.1, 0.15]},
+            'circuit_simulation': {'base_epochs': 5000, 'hidden_dims': [8, 10, 12, 14], 'learning_rates': [0.1, 0.15, 0.2]},
+            'state_machine': {'base_epochs': 4000, 'hidden_dims': [8, 10, 12], 'learning_rates': [0.1, 0.15, 0.2]},
+            'binary_decoder': {'base_epochs': 3000, 'hidden_dims': [6, 8, 10], 'learning_rates': [0.1, 0.2, 0.3]},
         }
         
-        # Cele ewolucji
-        self.mastery_threshold = 0.95
-        self.max_attempts_per_task = 5
+        # Globalny start time
         self.global_start_time = datetime.now()
     
     def run_full_evolution(self, progress_callback=None):
@@ -218,42 +267,110 @@ class AutoEvolutionSystem:
             
         except Exception as e:
             print(f"❌ Błąd w próbie {task_name}: {e}")
-            return {
-                'attempt_id': f"{task_name}_{hidden_dim}_{learning_rate}_error",
-                'hidden_dim': hidden_dim,
-                'learning_rate': learning_rate,
-                'epochs': epochs,
-                'final_accuracy': 0.0,
-                'final_loss': float('inf'),
-                'training_time': 0.0,
-                'total_sessions': 0,
-                'learning_speed': 0.0,
-                'improvement_trend': 'error',
-                'success': False,
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e)
-            }
     
-    def get_current_status(self) -> Dict[str, Any]:
+    def _master_task_to_perfection(self, task_name: str, progress_callback=None) -> bool:
         """
-        Aktualny status ewolucji
+        Opanuj zadanie do perfekcji (98% accuracy)
         """
-        return {
-            'tasks_count': len(self.tasks),
-            'mastered_count': len(self.mastered_tasks),
-            'mastered_tasks': list(self.mastered_tasks),
-            'remaining_tasks': [task for task in self.tasks.keys() if task not in self.mastered_tasks],
-            'progress_percentage': (len(self.mastered_tasks) / len(self.tasks)) * 100,
-            'current_time': datetime.now().isoformat()
-        }
+        strategy = self.task_strategies.get(task_name, {
+            'base_epochs': 2000, 'hidden_dims': [4, 6, 8, 10, 12], 'learning_rates': [0.1, 0.2, 0.3, 0.4, 0.5]
+        })
+        
+        best_accuracy = 0.0
+        best_params = None
+        
+        # Próbuj różnych parametrów aż do osiągnięcia perfekcji
+        for attempt in range(self.max_continuous_attempts):
+            for hidden_dim in strategy['hidden_dims']:
+                for learning_rate in strategy['learning_rates']:
+                    epochs = strategy['base_epochs'] + (attempt * 1000)  # Zwiększaj epoki z próbami
+                    
+                    try:
+                        # Pobierz persistent agenta
+                        persistent_agent = get_persistent_agent(task_name, hidden_dim, learning_rate)
+                        
+                        # Kontynuuj trening
+                        results = persistent_agent.continue_training(epochs=epochs)
+                        
+                        if results['final_accuracy'] > best_accuracy:
+                            best_accuracy = results['final_accuracy']
+                            best_params = {'hidden_dim': hidden_dim, 'learning_rate': learning_rate, 'epochs': epochs}
+                        
+                        # Sprawdź czy osiągnięto perfekcję
+                        if results['final_accuracy'] >= self.perfection_threshold:
+                            # Zapisz log sukcesu
+                            self.evolution_log.append({
+                                'task_name': task_name,
+                                'success': True,
+                                'best_accuracy': results['final_accuracy'],
+                                'optimal_params': best_params,
+                                'attempts': attempt + 1,
+                                'timestamp': datetime.now().isoformat()
+                            })
+                            
+                            print(f"🎉 {task_name.upper()} opanowane do perfekcji! Accuracy: {results['final_accuracy']:.4f}")
+                            return True
+                            
+                    except Exception as e:
+                        print(f"❌ Błąd w próbie {task_name}: {e}")
+                        continue
+        
+        # Zapisz najlepszy wynik nawet jeśli nie osiągnięto perfekcji
+        self.evolution_log.append({
+            'task_name': task_name,
+            'success': False,
+            'best_accuracy': best_accuracy,
+            'optimal_params': best_params,
+            'attempts': self.max_continuous_attempts,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        print(f"⚠️ {task_name.upper()} nie osiągnęło perfekcji. Best: {best_accuracy:.4f}")
+        return False
     
-    def _save_evolution_results(self, results: Dict[str, Any]):
+    def _improve_mastered_task(self, task_name: str, progress_callback=None) -> float:
+        """
+        Spróbuj ulepszyć już opanowane zadanie
+        """
+        strategy = self.task_strategies.get(task_name, {
+            'base_epochs': 1000, 'hidden_dims': [6, 8, 10, 12, 14], 'learning_rates': [0.05, 0.1, 0.2, 0.3]
+        })
+        
+        # Pobierz aktualnego agenta
+        persistent_agent = get_persistent_agent(task_name, 8, 0.3)
+        current_accuracy = persistent_agent.agent.evaluate()['accuracy']
+        
+        best_improvement = 0.0
+        
+        # Próbuj ulepszyć
+        for hidden_dim in strategy['hidden_dims']:
+            for learning_rate in strategy['learning_rates']:
+                try:
+                    # Krótki trening dodatkowy
+                    results = persistent_agent.continue_training(epochs=500)
+                    
+                    improvement = results['final_accuracy'] - current_accuracy
+                    if improvement > best_improvement:
+                        best_improvement = improvement
+                    
+                    if improvement > 0.001:  # Minimalna poprawa
+                        print(f"🎈 Ulepszenie {task_name}: {current_accuracy:.4f} → {results['final_accuracy']:.4f} (+{improvement:.4f})")
+                        return improvement
+                        
+                except Exception as e:
+                    continue
+        
+        return best_improvement
+    
+    def _save_results(self, results: Dict[str, Any]):
         """Zapisz wyniki ewolucji"""
         try:
-            import os
-            os.makedirs('data/evolution', exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"data/evolution/evolution_{timestamp}.json"
             
-            filename = f"data/evolution/evolution_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            # Upewnij się że katalog istnieje
+            Path("data/evolution").mkdir(parents=True, exist_ok=True)
+            
             with open(filename, 'w') as f:
                 json.dump(results, f, indent=2)
             

@@ -23,7 +23,7 @@ from universal_agent import UniversalAgent
 from network_visualizer import NetworkVisualizer
 from iq_calculator import AgentIQCalculator
 from persistent_agent import get_persistent_agent
-from auto_evolution import AutoEvolutionSystem
+from auto_evolution import ContinuousEvolutionSystem
 
 
 # Konfiguracja strony
@@ -219,7 +219,7 @@ def main():
         # Debug info
         if st.button("🔍 Debug System", type="secondary", key="debug_system"):
             try:
-                evolution_system = AutoEvolutionSystem()
+                evolution_system = ContinuousEvolutionSystem()
                 st.success("✅ System zainicjalizowany!")
                 st.json({
                     'tasks': list(evolution_system.tasks.keys()),
@@ -250,7 +250,7 @@ def main():
         # Gdy ewolucja jest uruchomiona
         if st.session_state.get('evolution_running', False):
             # Inicjalizuj system
-            evolution_system = AutoEvolutionSystem()
+            evolution_system = ContinuousEvolutionSystem()
             
             # Placeholder na status
             status_placeholder = st.empty()
@@ -285,7 +285,7 @@ def main():
         if st.session_state.get('evolution_results') and not st.session_state.get('evolution_running', False):
             evolution_results = st.session_state.evolution_results
             # Inicjalizuj system dla optymalizacji
-            evolution_system = AutoEvolutionSystem()
+            evolution_system = ContinuousEvolutionSystem()
             
             # Podsumowanie
             st.markdown("## 📊 Podsumowanie Ewolucji")
