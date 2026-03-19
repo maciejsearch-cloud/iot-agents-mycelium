@@ -250,179 +250,179 @@ def main():
                 
                 # Wyniki
                 st.markdown("## 📊 Wyniki Treningu")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Dokładność", f"{results['final_accuracy']:.3f}")
-            
-            with col2:
-                st.metric("Loss", f"{results['final_loss']:.6f}")
-            
-            with col3:
-                st.metric("Czas", f"{results['training_time']:.2f}s")
-            
-            with col4:
-                update_status = "✅ TAK" if results['updated_mycelium'] else "⚪ NIE"
-                st.metric("Aktualizacja Grzybni", update_status)
-            
-            # Komunikat o wyniku
-            if results['final_accuracy'] >= 0.95:
-                st.markdown(f"""
-                <div class="success-box">
-                    <strong>✅ Sukces!</strong> Agent nauczył się zadania <strong>{selected_task.upper()}</strong> 
-                    z dokładnością {results['final_accuracy']:.1%}!
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="warning-box">
-                    <strong>⚠️ Uwaga!</strong> Agent osiągnął tylko {results['final_accuracy']:.1%} dokładności. 
-                    Spróbuj zwiększyć liczbę epok lub neuronów ukrytych.
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Wykresy i predykcje - tylko jeśli nie było błędu
-            if 'agent' in results and results['agent'] is not None:
-                agent = results['agent']
                 
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # Wykres Loss
-                    fig_loss = go.Figure()
-                    fig_loss.add_trace(go.Scatter(
-                        y=agent.loss_history,
-                        mode='lines',
-                        name='Loss',
-                        line=dict(color='#ff6b6b', width=2)
-                    ))
-                    fig_loss.update_layout(
-                        title="Krzywa Straty",
-                        xaxis_title="Krok (x100)",
-                        yaxis_title="Loss",
-                        height=400
-                    )
-                    st.plotly_chart(fig_loss, width='stretch')
-                
-                with col2:
-                    # Wykres Accuracy
-                    fig_acc = go.Figure()
-                    fig_acc.add_trace(go.Scatter(
-                        y=agent.accuracy_history,
-                        mode='lines',
-                        name='Accuracy',
-                        line=dict(color='#51cf66', width=2)
-                    ))
-                    fig_acc.update_layout(
-                        title="Dokładność",
-                        xaxis_title="Krok (x100)",
-                        yaxis_title="Accuracy",
-                        yaxis=dict(range=[0, 1.1]),
-                        height=400
-                    )
-                    st.plotly_chart(fig_acc, width='stretch')
-                
-                # Predykcje
-                st.markdown("## 🎯 Predykcje")
-                
-                eval_results = agent.evaluate(verbose=False)
-                
-                # Tabela z wynikami
-                df = pd.DataFrame({
-                    'Wejście': [str(x) for x in agent.X.tolist()],
-                    'Oczekiwane': agent.y.flatten().tolist(),
-                    'Predykcja (raw)': eval_results['raw_predictions'].flatten().tolist(),
-                    'Predykcja (binary)': eval_results['predictions'].flatten().tolist(),
-                    'Poprawne': (eval_results['predictions'].flatten() == agent.y.flatten()).tolist()
-                })
-                
-                # Kolorowanie
-                def highlight_correct(row):
-                    if row['Poprawne']:
-                        return ['background-color: #d4edda'] * len(row)
-                    else:
-                        return ['background-color: #f8d7da'] * len(row)
-                
-                st.dataframe(
-                    df.style.apply(highlight_correct, axis=1).format({
-                        'Predykcja (raw)': '{:.4f}'
-                    }),
-                    width='stretch',
-                    hide_index=True
-                )
-                
-                # Wizualizacja sieci neuronowej
-                st.markdown("## 🧠 Wizualizacja Sieci Neuronowej")
-                
-                # Stwórz wizualizator
-                visualizer = NetworkVisualizer(
-                    input_dim=task.input_dim,
-                    hidden_dim=hidden_dim,
-                    output_dim=task.output_dim
-                )
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("### 🎯 Aktualna Architektura")
-                    # Ostatnie aktywacje
-                    if agent.activation_history:
-                        last_activations = agent.activation_history[-1]
-                        network_fig = visualizer.create_network_plot(
-                            weights=agent.get_weights(),
-                            activations=last_activations,
-                            title=f"Sieć: {task.name.upper()} ({task.input_dim}→{hidden_dim}→{task.output_dim})"
-                        )
-                        st.plotly_chart(network_fig, width='stretch')
-                
-                with col2:
-                    st.markdown("### 📈 Ewolucja Wag")
-                    if agent.weight_history and len(agent.weight_history) > 1:
-                        evolution_fig = visualizer.create_weight_evolution_plot(
-                            agent.weight_history,
-                            title="Jak wagi zmieniają się w czasie"
-                        )
-                        st.plotly_chart(evolution_fig, width='stretch')
-                
-                # Heatmap aktywacji
-                if agent.activation_history:
-                    st.markdown("### 🔥 Heatmap Aktywacji")
-                    last_activations = agent.activation_history[-1]
-                    heatmap_fig = visualizer.create_activation_heatmap(
-                        last_activations,
-                        title="Aktywacje neuronów dla ostatniego batcha"
-                    )
-                    st.plotly_chart(heatmap_fig, width='stretch')
-                
-                # Informacje o wagach
-                st.markdown("### 📊 Statystyki Wag")
-                weights = agent.get_weights()
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.metric(
-                        "W1 średnia", 
-                        f"{np.mean(np.abs(weights['W1'])):.4f}"
-                    )
+                    st.metric("Dokładność", f"{results['final_accuracy']:.3f}")
                 
                 with col2:
-                    st.metric(
-                        "W1 odchylenie", 
-                        f"{np.std(weights['W1'])::.4f}"
-                    )
+                    st.metric("Loss", f"{results['final_loss']:.6f}")
                 
                 with col3:
-                    st.metric(
-                        "W2 średnia", 
-                        f"{np.mean(np.abs(weights['W2'])):.4f}"
-                    )
+                    st.metric("Czas", f"{results['training_time']:.2f}s")
                 
                 with col4:
-                    st.metric(
-                        "W2 odchylenie", 
-                        f"{np.std(weights['W2'])::.4f}"
+                    update_status = "✅ TAK" if results['updated_mycelium'] else "⚪ NIE"
+                    st.metric("Aktualizacja Grzybni", update_status)
+            
+            # Komunikat o wyniku
+                if results['final_accuracy'] >= 0.95:
+                    st.markdown(f"""
+                    <div class="success-box">
+                        <strong>✅ Sukces!</strong> Agent nauczył się zadania <strong>{selected_task.upper()}</strong> 
+                        z dokładnością {results['final_accuracy']:.1%}!
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="warning-box">
+                        <strong>⚠️ Uwaga!</strong> Agent osiągnął tylko {results['final_accuracy']:.1%} dokładności. 
+                        Spróbuj zwiększyć liczbę epok lub neuronów ukrytych.
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Wykresy i predykcje - tylko jeśli nie było błędu
+                if 'agent' in results and results['agent'] is not None:
+                    agent = results['agent']
+                
+                col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Wykres Loss
+                        fig_loss = go.Figure()
+                        fig_loss.add_trace(go.Scatter(
+                            y=agent.loss_history,
+                            mode='lines',
+                            name='Loss',
+                            line=dict(color='#ff6b6b', width=2)
+                        ))
+                        fig_loss.update_layout(
+                            title="Krzywa Straty",
+                            xaxis_title="Krok (x100)",
+                            yaxis_title="Loss",
+                            height=400
+                        )
+                        st.plotly_chart(fig_loss, width='stretch')
+                    
+                    with col2:
+                        # Wykres Accuracy
+                        fig_acc = go.Figure()
+                        fig_acc.add_trace(go.Scatter(
+                            y=agent.accuracy_history,
+                            mode='lines',
+                            name='Accuracy',
+                            line=dict(color='#51cf66', width=2)
+                        ))
+                        fig_acc.update_layout(
+                            title="Dokładność",
+                            xaxis_title="Krok (x100)",
+                            yaxis_title="Accuracy",
+                            yaxis=dict(range=[0, 1.1]),
+                            height=400
+                        )
+                        st.plotly_chart(fig_acc, width='stretch')
+                    
+                    # Predykcje
+                    st.markdown("## 🎯 Predykcje")
+                    
+                    eval_results = agent.evaluate(verbose=False)
+                    
+                    # Tabela z wynikami
+                    df = pd.DataFrame({
+                        'Wejście': [str(x) for x in agent.X.tolist()],
+                        'Oczekiwane': agent.y.flatten().tolist(),
+                        'Predykcja (raw)': eval_results['raw_predictions'].flatten().tolist(),
+                        'Predykcja (binary)': eval_results['predictions'].flatten().tolist(),
+                        'Poprawne': (eval_results['predictions'].flatten() == agent.y.flatten()).tolist()
+                    })
+                    
+                    # Kolorowanie
+                    def highlight_correct(row):
+                        if row['Poprawne']:
+                            return ['background-color: #d4edda'] * len(row)
+                        else:
+                            return ['background-color: #f8d7da'] * len(row)
+                    
+                    st.dataframe(
+                        df.style.apply(highlight_correct, axis=1).format({
+                            'Predykcja (raw)': '{:.4f}'
+                        }),
+                        width='stretch',
+                        hide_index=True
                     )
+                    
+                    # Wizualizacja sieci neuronowej
+                    st.markdown("## 🧠 Wizualizacja Sieci Neuronowej")
+                    
+                    # Stwórz wizualizator
+                    visualizer = NetworkVisualizer(
+                        input_dim=task.input_dim,
+                        hidden_dim=hidden_dim,
+                        output_dim=task.output_dim
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("### 🎯 Aktualna Architektura")
+                        # Ostatnie aktywacje
+                        if agent.activation_history:
+                            last_activations = agent.activation_history[-1]
+                            network_fig = visualizer.create_network_plot(
+                                weights=agent.get_weights(),
+                                activations=last_activations,
+                                title=f"Sieć: {task.name.upper()} ({task.input_dim}→{hidden_dim}→{task.output_dim})"
+                            )
+                            st.plotly_chart(network_fig, width='stretch')
+                    
+                    with col2:
+                        st.markdown("### 📈 Ewolucja Wag")
+                        if agent.weight_history and len(agent.weight_history) > 1:
+                            evolution_fig = visualizer.create_weight_evolution_plot(
+                                agent.weight_history,
+                                title="Jak wagi zmieniają się w czasie"
+                            )
+                            st.plotly_chart(evolution_fig, width='stretch')
+                    
+                    # Heatmap aktywacji
+                    if agent.activation_history:
+                        st.markdown("### 🔥 Heatmap Aktywacji")
+                        last_activations = agent.activation_history[-1]
+                        heatmap_fig = visualizer.create_activation_heatmap(
+                            last_activations,
+                            title="Aktywacje neuronów dla ostatniego batcha"
+                        )
+                        st.plotly_chart(heatmap_fig, width='stretch')
+                    
+                    # Informacje o wagach
+                    st.markdown("### 📊 Statystyki Wag")
+                    weights = agent.get_weights()
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric(
+                            "W1 średnia", 
+                            f"{np.mean(np.abs(weights['W1'])):.4f}"
+                        )
+                    
+                    with col2:
+                        st.metric(
+                            "W1 odchylenie", 
+                            f"{np.std(weights['W1']):.4f}"
+                        )
+                    
+                    with col3:
+                        st.metric(
+                            "W2 średnia", 
+                            f"{np.mean(np.abs(weights['W2'])):.4f}"
+                        )
+                    
+                    with col4:
+                        st.metric(
+                            "W2 odchylenie", 
+                            f"{np.std(weights['W2']):.4f}"
+                        )
     
     # Informacje o grzybni
     st.markdown("---")
